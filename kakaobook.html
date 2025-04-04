@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <style>
+    body {
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+
+    main {
+      flex: 1 0 auto;
+    }
+
+    .l_banner {
+      width: 100vw;
+      height: 40vw;
+      background-image: url("assets/img/book/banner_web.jpg");
+      background-size: cover;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <nav>
+    <div class="nav-wrapper">
+      <a href="#" class="brand-logo" id="mic">
+        <i class="small material-icons"
+           style="font-size: 3rem; margin-left: 10px"
+        >mic</i>
+      </a>
+      <ul id="nav-mobile" class="right hide-on-med-and-down">
+        <li><a href="sass.html">Sass</a></li>
+        <li><a href="badges.html">Components</a></li>
+        <li><a href="collapsible.html">JavaScript</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <div class="container">
+    <table>
+      <thead>
+      <tr>
+        <th>thumbnail</th>
+        <th>title</th>
+        <th>author</th>
+      </tr>
+      </thead>
+      <tbody id="bookList">
+
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<footer class="page-footer">
+  <div class="container">
+    <div class="row">
+      <div class="col l6 s12">
+        <h5 class="white-text">Footer Content</h5>
+        <p class="grey-text text-lighten-4">You can use rows and columns here to organize your
+          footer content.</p>
+      </div>
+      <div class="col l4 offset-l2 s12">
+        <h5 class="white-text">Links</h5>
+        <ul>
+          <li><a class="grey-text text-lighten-3" href="#!">Link 1</a></li>
+          <li><a class="grey-text text-lighten-3" href="#!">Link 2</a></li>
+          <li><a class="grey-text text-lighten-3" href="#!">Link 3</a></li>
+          <li><a class="grey-text text-lighten-3" href="#!">Link 4</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer-copyright">
+    <div class="container">
+      © 2014 Copyright Text
+      <a class="grey-text text-lighten-4 right" href="#!">More Links</a>
+    </div>
+  </div>
+</footer>
+
+<table style="display: none">
+  <tr id="bookTemplate">
+    <td>
+      <img src="#" alt="thumbnail" class="book-thumb">
+    </td>
+    <td class="book-tit"></td>
+    <td class="book-author"></td>
+  </tr>
+</table>
+
+<script type="module">
+  import api from './assets/js/module/kakaobook.js'
+  import lodashEs from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/+esm'
+  import Speech from './assets/js/module/speech.js';
+
+  let lastSearch = '';
+  let lastPage = 1;
+
+  const speech = new Speech(ev => {
+    const results = ev.results;
+    let text = results[results.length - 1][0].transcript.trim();
+
+    if (text.startsWith('검색')) {
+      lastSearch = text.replace('검색', '');
+      renderBooks(lastSearch);
+    }
+
+    if (text === '다음') renderBooks(lastSearch, ++lastPage);
+    if (text === '이전') renderBooks(lastSearch, --lastPage);
+    if (text === '설명') {
+      const desc = bookList.firstElementChild.dataset.desc;
+      speech.speak(desc);
+    }
+  });
+
+  speech.recognize();
+
+  mic.addEventListener('click', lodashEs.throttle(ev => {
+        const text = ev.target.textContent;
+        if (text === 'mic') {
+          speech.stop();
+          ev.target.textContent = 'mic_off';
+        } else {
+          speech.recognize();
+          ev.target.textContent = 'mic';
+        }
+      }, 5000)
+  );
+
+  bookList.addEventListener('mouseover', ev => {
+    // ev.target : 실제 이벤트가 발생한 대상
+    ev.target.parentElement.style.backgroundColor = 'lightyellow';
+    ev.stopPropagation();
+  });
+
+  bookList.addEventListener('mouseout', ev => {
+    ev.target.parentElement.style.backgroundColor = null;
+    ev.stopPropagation();
+  });
+
+  const renderBooks = async (query, page) => {
+    if (page < 1) {
+      alert('첫 페이지 입니다.')
+    }
+
+    const params = {
+      query: query,
+      size: 2,
+      page: page
+    }
+
+    const {meta, documents} = await api(params);
+
+    if (meta['is_end'] && documents.length === 0) {
+      alert('마지막 페이지 입니다.');
+      return;
+    }
+
+    bookList.innerHTML = '';
+
+    documents.forEach((e, idx) => {
+      const clone = bookTemplate.cloneNode(true);
+      clone.id = `bookRow${idx}`;
+      clone.querySelector('.book-thumb').src = e.thumbnail;
+      clone.querySelector('.book-tit').textContent = e.title;
+      clone.querySelector('.book-author').textContent = e.authors.join('\n');
+      clone.dataset.desc = e.contents;
+      bookList.appendChild(clone);
+    });
+  }
+
+</script>
+
+</body>
+</html>
+
